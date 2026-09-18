@@ -11,12 +11,78 @@ use Inertia\Inertia;
 class LeaderboardController extends Controller
 {
     /**
-     * Display the community leaderboard.
+     * Display the problem-wise community leaderboard.
+     * Shows problems on top based on number of interacting people and contributions.
      */
     public function index(Request $request)
     {
-        $timeframe = $request->query('timeframe', 'all_time');
+        $sort = $request->query('sort', 'interactions'); // interactions, contributions, supports
+        $category = $request->query('category', 'all');
 
+        $problemQuery = Problem::with(['contact', 'user'])
+            ->where(function ($q) {
+                $q->where('status', 'approved')
+                  ->orWhere('status', 'Approved');
+            });
+
+        if ($category !== 'all') {
+            $problemQuery->where('category_slug', $category);
+        }
+
+        if ($sort === 'contributions') {
+            $problemQuery->orderBy('contribution_count', 'desc')
+                         ->orderBy('support_count', 'desc');
+        } elseif ($sort === 'supports') {
+            $problemQuery->orderBy('support_count', 'desc')
+                         ->orderBy('contribution_count', 'desc');
+        } else {
+            // Default: Combined community interaction and contribution weight
+            $problemQuery->orderByRaw('(support_count * 2 + contribution_count * 5 + comment_count) DESC');
+        }
+
+        $problems = $problemQuery->take(30)->get();
+
+        $rankedProblems = $problems->map(function ($p, $index) {
+            $rank = $index + 1;
+            $interactionScore = ($p->support_count * 2) + ($p->contribution_count * 5) + $p->comment_count;
+
+            $badge = null;
+            if ($rank === 1) {
+                $badge = '🥇 #1 Most Impacted Problem';
+            } elseif ($rank === 2) {
+                $badge = '🥈 #2 Critical Concern';
+            } elseif ($rank === 3) {
+                $badge = '🥉 #3 High Urgency';
+            }
+
+            return [
+                'rank' => $rank,
+                'id' => $p->id,
+                'public_id' => $p->public_id,
+                'slug' => $p->slug,
+                'title' => $p->title,
+                'description' => $p->description,
+                'category_slug' => $p->category_slug,
+                'category_name' => $p->category_name,
+                'urgency' => $p->urgency,
+                'scale' => $p->scale,
+                'frequency' => $p->frequency,
+                'country' => $p->country,
+                'state' => $p->state,
+                'city' => $p->city,
+                'support_count' => (int) $p->support_count,
+                'contribution_count' => (int) $p->contribution_count,
+                'comment_count' => (int) $p->comment_count,
+                'views_count' => (int) $p->views_count,
+                'interaction_score' => $interactionScore,
+                'is_pinned' => (bool) $p->is_pinned,
+                'pin_order' => $p->pin_order,
+                'badge' => $badge,
+                'created_at' => $p->created_at ? $p->created_at->diffForHumans() : 'Recently',
+            ];
+        });
+
+        // Top Contributors for secondary tab
         $users = User::select('id', 'name', 'username', 'role', 'avatar_url', 'reputation', 'points', 'created_at')
             ->withCount([
                 'problems as problems_count' => function ($query) {
@@ -27,59 +93,43 @@ class LeaderboardController extends Controller
                 },
             ])
             ->orderBy('points', 'desc')
-            ->orderBy('reputation', 'desc')
-            ->take(50)
-            ->get();
+            ->take(20)
+            ->get()
+            ->map(function ($user, $index) {
+                return [
+                    'rank' => $index + 1,
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'username' => $user->username,
+                    'role' => $user->role,
+                    'avatar_url' => $user->avatar_url,
+                    'points' => (int) $user->points,
+                    'reputation' => (int) $user->reputation,
+                    'problems_count' => (int) $user->problems_count,
+                    'solutions_count' => (int) $user->solutions_count,
+                ];
+            });
 
-        // Calculate badges and rank numbers
-        $rankedUsers = $users->map(function ($user, $index) {
-            $rank = $index + 1;
-            $badge = null;
-            if ($rank === 1) {
-                $badge = '🥇 Grand Architect';
-            } elseif ($rank === 2) {
-                $badge = '🥈 Master Builder';
-            } elseif ($rank === 3) {
-                $badge = '🥉 Lead Problem Solver';
-            } elseif ($rank <= 10) {
-                $badge = '⭐ Elite Contributor';
-            } else {
-                $badge = '🚀 Active Explorer';
-            }
-
-            return [
-                'rank' => $rank,
-                'id' => $user->id,
-                'name' => $user->name,
-                'username' => $user->username,
-                'role' => $user->role,
-                'avatar_url' => $user->avatar_url,
-                'badge' => $badge,
-                'points' => (int) $user->points,
-                'reputation' => (int) $user->reputation,
-                'problems_count' => (int) $user->problems_count,
-                'solutions_count' => (int) $user->solutions_count,
-                'joined_at' => $user->created_at->format('M Y'),
-            ];
-        });
-
-        // Top 3 pinned problems for spotlight
-        $topProblems = Problem::where('is_pinned', true)
-            ->orWhere('status', 'approved')
-            ->orderBy('is_pinned', 'desc')
-            ->orderBy('pin_order', 'asc')
-            ->orderBy('support_count', 'desc')
-            ->take(3)
-            ->get();
+        $categories = [
+            ['slug' => 'all', 'name' => 'All Categories'],
+            ['slug' => 'healthcare', 'name' => 'Healthcare'],
+            ['slug' => 'education', 'name' => 'Education'],
+            ['slug' => 'agriculture', 'name' => 'Agriculture'],
+            ['slug' => 'infrastructure', 'name' => 'Civic Infrastructure'],
+            ['slug' => 'fintech', 'name' => 'Fintech'],
+            ['slug' => 'accessibility', 'name' => 'Accessibility'],
+        ];
 
         return Inertia::render('Leaderboard', [
-            'rankedUsers' => $rankedUsers,
-            'topProblems' => $topProblems,
-            'timeframe' => $timeframe,
+            'rankedProblems' => $rankedProblems,
+            'rankedUsers' => $users,
+            'currentSort' => $sort,
+            'currentCategory' => $category,
+            'categories' => $categories,
             'communityStats' => [
-                'totalMembers' => User::count(),
-                'totalProblems' => Problem::where('status', 'approved')->count(),
-                'totalSolutions' => Contribution::count(),
+                'totalInteractions' => Problem::sum('support_count'),
+                'totalSolutions' => Problem::sum('contribution_count') ?: Contribution::count(),
+                'totalProblems' => Problem::where('status', 'approved')->orWhere('status', 'Approved')->count(),
             ],
         ]);
     }
