@@ -12,7 +12,8 @@ import {
     X, 
     Sparkles, 
     ArrowRight,
-    UserCircle2
+    UserCircle2,
+    Trophy
 } from 'lucide-react';
 import { Button } from '../UI/Button';
 
@@ -34,11 +35,11 @@ export function Navbar({ onOpenAuth, onOpenSubmit }: NavbarProps) {
     };
 
     const navLinks = [
-        { name: 'Explore', href: '/explore', icon: Compass, active: url.startsWith('/explore') },
+        { name: 'Explore', href: '/explore', icon: Compass, active: url === '/explore' },
+        { name: 'Swipe', href: '/explore/swipe', icon: Sparkles, active: url.startsWith('/explore/swipe') },
+        { name: 'Leaderboard', href: '/leaderboard', icon: Trophy, active: url.startsWith('/leaderboard') },
         { name: 'Trending', href: '/trending', icon: Flame, active: url.startsWith('/trending') },
         { name: 'Domains', href: '/domains', icon: Layers, active: url.startsWith('/domains') },
-        { name: 'Solutions', href: '/solutions', icon: Lightbulb, active: url.startsWith('/solutions') },
-        { name: 'Pricing', href: '/pricing', icon: CreditCard, active: url.startsWith('/pricing') },
     ];
 
     return (
@@ -128,11 +129,7 @@ export function Navbar({ onOpenAuth, onOpenSubmit }: NavbarProps) {
                             variant="primary"
                             size="sm"
                             onClick={() => {
-                                if (onOpenSubmit) {
-                                    onOpenSubmit();
-                                } else {
-                                    window.location.href = '/problems/create';
-                                }
+                                window.location.href = '/submit-problem';
                             }}
                             className="hidden xs:inline-flex"
                         >

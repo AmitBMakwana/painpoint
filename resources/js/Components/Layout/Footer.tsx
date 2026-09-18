@@ -38,10 +38,11 @@ export function Footer() {
                         <h4 className="font-semibold text-slate-900 text-sm mb-3">Explore</h4>
                         <ul className="space-y-2.5 text-sm">
                             <li><Link href="/explore" className="text-slate-600 hover:text-indigo-600 transition-colors">All Problems</Link></li>
+                            <li><Link href="/explore/swipe" className="text-indigo-600 font-medium hover:text-indigo-700 transition-colors flex items-center gap-1.5">🔥 Card Swipe Mode</Link></li>
+                            <li><Link href="/leaderboard" className="text-amber-600 font-medium hover:text-amber-700 transition-colors flex items-center gap-1.5">🏆 Leaderboard</Link></li>
                             <li><Link href="/trending" className="text-slate-600 hover:text-indigo-600 transition-colors">Trending Problems</Link></li>
                             <li><Link href="/solutions" className="text-slate-600 hover:text-indigo-600 transition-colors">Community Solutions</Link></li>
                             <li><Link href="/domains" className="text-slate-600 hover:text-indigo-600 transition-colors">Browse Domains</Link></li>
-                            <li><Link href="/explore?sort=most_validated" className="text-slate-600 hover:text-indigo-600 transition-colors">Most Validated</Link></li>
                         </ul>
                     </div>
 
@@ -61,11 +62,12 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-slate-900 text-sm mb-3">Platform</h4>
                         <ul className="space-y-2.5 text-sm">
+                            <li><Link href="/submit-problem" className="text-slate-600 hover:text-indigo-600 transition-colors">Submit Problem (Public)</Link></li>
                             <li><Link href="/pricing" className="text-slate-600 hover:text-indigo-600 transition-colors">Pricing & Plans</Link></li>
                             <li><Link href="/about" className="text-slate-600 hover:text-indigo-600 transition-colors">Product Vision</Link></li>
-                            <li><a href="#how-it-works" className="text-slate-600 hover:text-indigo-600 transition-colors">How It Works</a></li>
                             <li><Link href="/login" className="text-slate-600 hover:text-indigo-600 transition-colors">Sign In</Link></li>
                             <li><Link href="/register" className="text-slate-600 hover:text-indigo-600 transition-colors">Create Account</Link></li>
+                            <li><Link href="/admin/login" className="text-slate-600 hover:text-slate-700 transition-colors text-xs font-mono">🔒 Admin Console</Link></li>
                         </ul>
                     </div>
 
