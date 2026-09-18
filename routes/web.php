@@ -84,9 +84,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // User Profile Routes
 Route::get('/profile/{username?}', [AuthController::class, 'showProfile'])->name('profile.view');
 Route::get('/app/profile', [AuthController::class, 'showProfile'])->name('profile.show');
-Route::get('/app/saved', function () {
-    return Inertia::render('Profile/Show', ['defaultTab' => 'saved']);
-})->name('profile.saved');
+Route::post('/profile/update', [AuthController::class, 'updateProfile'])->name('profile.update')->middleware('auth');
+Route::get('/app/saved', [AuthController::class, 'showProfile'])->name('profile.saved');
 
 // -----------------------------------------------------------------------------
 // Admin Moderation Suite (Separate Admin Auth & Dashboard)
@@ -98,11 +97,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('auth:admin')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        
+        // Problem Moderation
         Route::get('/problems', [AdminProblemController::class, 'index'])->name('problems.index');
         Route::post('/problems/{id}/approve', [AdminProblemController::class, 'approve'])->name('problems.approve');
         Route::post('/problems/{id}/reject', [AdminProblemController::class, 'reject'])->name('problems.reject');
         Route::post('/problems/{id}/pin', [AdminProblemController::class, 'pin'])->name('problems.pin');
         Route::post('/problems/{id}/feature', [AdminProblemController::class, 'feature'])->name('problems.feature');
         Route::delete('/problems/{id}', [AdminProblemController::class, 'destroy'])->name('problems.destroy');
+
+        // User Management
+        Route::get('/users', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('users.index');
+        Route::match(['post', 'put'], '/users/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        // Solutions Moderation
+        Route::get('/solutions', [\App\Http\Controllers\Admin\AdminSolutionController::class, 'index'])->name('solutions.index');
+        Route::post('/solutions/{id}/accept', [\App\Http\Controllers\Admin\AdminSolutionController::class, 'accept'])->name('solutions.accept');
+        Route::delete('/solutions/{id}', [\App\Http\Controllers\Admin\AdminSolutionController::class, 'destroy'])->name('solutions.destroy');
+
+        // Platform Settings
+        Route::get('/settings', [\App\Http\Controllers\Admin\AdminSettingsController::class, 'index'])->name('settings.index');
     });
 });

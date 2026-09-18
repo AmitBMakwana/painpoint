@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contribution;
+use App\Models\Problem;
+use App\Models\Support;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +20,10 @@ class AuthController extends Controller
      */
     public function showRegister()
     {
+        if (Auth::check()) {
+            return redirect()->intended('/explore');
+        }
+
         return Inertia::render('Auth/Register');
     }
 
@@ -32,7 +39,7 @@ class AuthController extends Controller
         ]);
 
         $baseUsername = Str::slug($validated['name']);
-        $username = $baseUsername;
+        $username = $baseUsername ?: 'user' . rand(1000, 9999);
         $counter = 1;
         while (User::where('username', $username)->exists()) {
             $username = $baseUsername . $counter++;
@@ -45,12 +52,14 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'Community Member',
             'reputation' => 10,
+            'points' => 50,
+            'headline' => 'Community Member & Problem Hunter',
         ]);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended('/explore');
+        return redirect()->intended('/explore')->with('success', "Welcome to PainPoint, {$user->name}!");
     }
 
     /**
@@ -58,6 +67,10 @@ class AuthController extends Controller
      */
     public function showLogin()
     {
+        if (Auth::check()) {
+            return redirect()->intended('/explore');
+        }
+
         return Inertia::render('Auth/Login');
     }
 
@@ -73,7 +86,7 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended('/explore');
+            return redirect()->intended('/explore')->with('success', 'Logged in successfully.');
         }
 
         return back()->withErrors([
@@ -90,20 +103,86 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect('/')->with('info', 'You have been signed out.');
     }
 
     /**
-     * View user profile by username.
+     * View user profile by username or current authenticated user.
      */
     public function showProfile($username = null)
     {
-        $user = $username 
-            ? User::where('username', $username)->first() 
-            : Auth::user();
+        if ($username) {
+            $user = User::where('username', $username)->first();
+        } else {
+            $user = Auth::user();
+        }
+
+        // If still null, redirect to login
+        if (!$user) {
+            return redirect()->route('login')->with('info', 'Please sign in to view your profile.');
+        }
+
+        $isOwner = Auth::check() && Auth::id() === $user->id;
+
+        // User's submitted problems
+        $userProblems = Problem::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // User's contributed solutions
+        $userSolutions = Contribution::where('user_id', $user->id)
+            ->with('problem')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Saved / supported problems
+        $savedProblems = Problem::whereHas('supports', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         return Inertia::render('Profile/Show', [
-            'profileUser' => $user,
+            'profileUser' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'role' => $user->role ?? 'Community Member',
+                'reputation' => (int) ($user->reputation ?? 10),
+                'points' => (int) ($user->points ?? 50),
+                'headline' => $user->headline ?? 'Community Problem Solver',
+                'bio' => $user->bio ?? 'Active contributor discovering friction and building community solutions.',
+                'avatar_url' => $user->avatar_url,
+                'created_at' => $user->created_at ? $user->created_at->format('M Y') : '2026',
+            ],
+            'isOwner' => $isOwner,
+            'userProblems' => $userProblems,
+            'userSolutions' => $userSolutions,
+            'savedProblems' => $savedProblems,
+            'defaultTab' => request('tab', request()->routeIs('profile.saved') ? 'saved' : 'problems'),
         ]);
+    }
+
+    /**
+     * Update profile details.
+     */
+    public function updateProfile(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'headline' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $user->update($validated);
+
+        return back()->with('success', 'Profile updated successfully.');
     }
 }
